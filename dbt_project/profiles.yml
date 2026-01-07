@@ -1,13 +1,14 @@
-# Perfil de dbt para CI (solo validacion, sin conexion real)
-# En produccion, usar variables de entorno o profiles.yml local
+# Perfil de dbt para CI (solo validacion de sintaxis)
+# En CI usamos un proyecto dummy ya que solo parseamos SQL
 
 dbt_project:
   target: ci
   outputs:
     ci:
       type: bigquery
-      method: oauth
-      project: "{{ env_var('GCP_PROJECT_ID', 'dummy-project') }}"
-      dataset: airline_raw_data
+      method: service-account
+      project: dummy-project-for-ci
+      dataset: dummy_dataset
       location: US
       threads: 1
+      keyfile: /tmp/dummy-keyfile.json

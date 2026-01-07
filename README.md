@@ -1,26 +1,26 @@
-# Aero360 - Airline Data Pipeline
+# Aero360 - Pipeline de Datos para Aerolinea
 
-A production-ready **DataOps** pipeline for airline flight data analytics, built on **Google Cloud Platform**.
+Pipeline de **DataOps** listo para produccion, construido sobre **Google Cloud Platform**.
 
-## Architecture
+## Arquitectura
 
 ```mermaid
 flowchart LR
-    subgraph Ingestion["Ingestion Layer"]
-        GEN[generator.py<br/>Synthetic Data]
-        VAL[validator.py<br/>Quality Checks]
-        UP[upload.py<br/>GCS Upload]
+    subgraph Ingestion["Capa de Ingesta"]
+        GEN[generator.py<br/>Datos Sinteticos]
+        VAL[validator.py<br/>Validacion]
+        UP[upload.py<br/>Carga a GCS]
     end
 
     subgraph GCP["Google Cloud Platform"]
         GCS[(Cloud Storage<br/>Landing Zone)]
-        BQ[(BigQuery<br/>Raw Dataset)]
+        BQ[(BigQuery<br/>Dataset Raw)]
     end
 
-    subgraph Transform["Transformation Layer"]
+    subgraph Transform["Capa de Transformacion"]
         STG[stg_flights<br/>Staging]
         INT[int_flight_metrics<br/>Intermediate]
-        MART[mart_daily_operations<br/>Business KPIs]
+        MART[mart_daily_operations<br/>KPIs de Negocio]
     end
 
     GEN --> VAL --> UP --> GCS
@@ -28,120 +28,120 @@ flowchart LR
     BQ --> STG --> INT --> MART
 ```
 
-## Project Structure
+## Estructura del Proyecto
 
 ```
 Aero360/
-├── terraform/           # Infrastructure as Code (IaC)
-│   ├── main.tf          # GCS Bucket + BigQuery Dataset
-│   ├── provider.tf      # Google Cloud provider config
-│   ├── variables.tf     # Parameterized variables
-│   └── backend.tf       # Remote state in GCS
+├── terraform/           # Infraestructura como Codigo (IaC)
+│   ├── main.tf          # Bucket GCS + Dataset BigQuery
+│   ├── provider.tf      # Configuracion del provider GCP
+│   ├── variables.tf     # Variables parametrizadas
+│   └── backend.tf       # Estado remoto en GCS
 │
-├── ingestion/           # Data Ingestion Layer
+├── ingestion/           # Capa de Ingesta de Datos
 │   └── src/
-│       ├── generator.py # Synthetic flight data generator
-│       ├── validator.py # JSON Schema validation
-│       └── upload.py    # Upload to GCS
+│       ├── generator.py # Generador de datos sinteticos
+│       ├── validator.py # Validacion con JSON Schema
+│       └── upload.py    # Carga a GCS
 │
-├── dbt_project/         # Data Transformation (dbt)
+├── dbt_project/         # Transformacion de Datos (dbt)
 │   └── models/
-│       ├── staging/     # Raw data cleaning
-│       ├── intermediate/# Aggregated metrics
-│       └── marts/       # Business-ready KPIs
+│       ├── staging/     # Limpieza de datos raw
+│       ├── intermediate/# Metricas agregadas
+│       └── marts/       # KPIs listos para dashboards
 │
-└── .github/workflows/   # CI/CD Pipelines
-    └── ci.yml           # Terraform + dbt + Python checks
+└── .github/workflows/   # Pipelines de CI/CD
+    └── ci.yml           # Validacion de Terraform + dbt + Python
 ```
 
-## Quick Start
+## Inicio Rapido
 
-### Prerequisites
+### Prerequisitos
 - [Terraform](https://terraform.io) >= 1.0
 - [Python](https://python.org) >= 3.9
 - [dbt-core](https://docs.getdbt.com) >= 1.5
-- GCP Project with billing enabled
+- Proyecto de GCP con facturacion habilitada
 
-### 1. Infrastructure Setup
+### 1. Configurar Infraestructura
 ```bash
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your project_id
+# Editar terraform.tfvars con tu project_id
 
 terraform init
 terraform plan
 terraform apply
 ```
 
-### 2. Ingestion Setup
+### 2. Configurar Ingesta
 ```bash
 cd ingestion
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Set environment variables
-export GCS_BUCKET_NAME="your-project-id-vuelos-landing"
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+# Configurar variables de entorno
+export GCS_BUCKET_NAME="tu-project-id-vuelos-landing"
+export GOOGLE_APPLICATION_CREDENTIALS="/ruta/a/service-account.json"
 
-# Generate and upload test data
+# Generar y subir datos de prueba
 python src/generator.py
 python src/validator.py
 python src/upload.py
 ```
 
-### 3. dbt Transformation
+### 3. Transformacion con dbt
 ```bash
 cd dbt_project
 pip install dbt-bigquery
 
-# Configure profiles.yml with your credentials
+# Configurar profiles.yml con tus credenciales
 dbt deps
 dbt run
 dbt test
 ```
 
-## Environment Variables
+## Variables de Entorno
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `GCS_BUCKET_NAME` | Target GCS bucket for landing zone | Yes |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account JSON | Yes |
-| `GCP_PROJECT_ID` | Google Cloud Project ID | Yes |
+| Variable | Descripcion | Requerida |
+|----------|-------------|-----------|
+| `GCS_BUCKET_NAME` | Bucket de GCS para landing zone | Si |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Ruta al JSON de service account | Si |
+| `GCP_PROJECT_ID` | ID del proyecto de Google Cloud | Si |
 
-## Data Quality
+## Calidad de Datos
 
-The pipeline includes multiple quality gates:
+El pipeline incluye multiples puntos de validacion:
 
-1. **Pre-ingestion** (`validator.py`):
-   - JSON Schema validation
-   - Field range checks (passengers: 1-500, fuel: 0-100)
-   - Airport code format (3 uppercase letters)
+1. **Pre-ingesta** (`validator.py`):
+   - Validacion de esquema JSON
+   - Verificacion de rangos (pasajeros: 1-500, combustible: 0-100)
+   - Formato de codigos de aeropuerto (3 letras mayusculas)
 
-2. **dbt Tests** (`schema.yml`):
-   - Primary key uniqueness
-   - Not null constraints
-   - Referential integrity
+2. **Tests de dbt** (`schema.yml`):
+   - Unicidad de clave primaria
+   - Restricciones de not null
+   - Integridad referencial
 
-## Key Metrics
+## Metricas Clave
 
-| Metric | Description | Location |
-|--------|-------------|----------|
-| `total_flights` | Daily flight count | `mart_daily_operations` |
-| `total_passengers` | Passengers transported | `mart_daily_operations` |
-| `avg_fuel_efficiency` | Average fuel level | `mart_daily_operations` |
-| `flights_per_route` | Flights by origin-destination | `int_flight_metrics` |
+| Metrica | Descripcion | Ubicacion |
+|---------|-------------|-----------|
+| `total_vuelos` | Cantidad de vuelos diarios | `mart_daily_operations` |
+| `total_pasajeros` | Pasajeros transportados | `mart_daily_operations` |
+| `eficiencia_combustible` | Nivel promedio de combustible | `mart_daily_operations` |
+| `vuelos_por_ruta` | Vuelos por origen-destino | `int_flight_metrics` |
 
-## Tech Stack
+## Stack Tecnologico
 
-| Layer | Technology |
-|-------|------------|
-| Infrastructure | Terraform, GCS, BigQuery |
-| Ingestion | Python, google-cloud-storage |
-| Transformation | dbt-core, dbt-bigquery |
+| Capa | Tecnologia |
+|------|------------|
+| Infraestructura | Terraform, GCS, BigQuery |
+| Ingesta | Python, google-cloud-storage |
+| Transformacion | dbt-core, dbt-bigquery |
 | CI/CD | GitHub Actions |
-| Quality | jsonschema, dbt tests |
+| Calidad | jsonschema, dbt tests |
 
-## License
+## Licencia
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License

@@ -4,13 +4,13 @@
 locals {
   # Tags que se aplican a todos los recursos
   common_labels = {
-    proyecto    = "aero360"
-    ambiente    = "dev"
-    equipo      = "dataops"
-    gestionado  = "terraform"
-    owner       = "usuario"
+    proyecto   = "aero360"
+    ambiente   = "dev"
+    equipo     = "dataops"
+    gestionado = "terraform"
+    owner      = "usuario"
   }
-  
+
   # Nombre base para recursos (evita repetición)
   nombre_proyecto = "aero360"
 }

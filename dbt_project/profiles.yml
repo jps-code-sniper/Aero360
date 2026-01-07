@@ -1,0 +1,13 @@
+# Perfil de dbt para CI (solo validacion, sin conexion real)
+# En produccion, usar variables de entorno o profiles.yml local
+
+dbt_project:
+  target: ci
+  outputs:
+    ci:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'dummy-project') }}"
+      dataset: airline_raw_data
+      location: US
+      threads: 1

@@ -23,12 +23,12 @@ RUTA_JSON = os.path.join(DIRECTORIO_BASE, "..", "..", "data", "flight_test.json"
 def subir_a_gcs(archivo_local: str, nombre_bucket: str, destino_gcs: str) -> bool:
     """
     Sube un archivo local al bucket de Google Cloud Storage.
-    
+
     Parámetros:
         archivo_local: Ruta al archivo en el sistema local
         nombre_bucket: Nombre del bucket de GCS destino
         destino_gcs: Ruta dentro del bucket donde guardar el archivo
-        
+
     Retorna:
         True si la subida fue exitosa, False en caso contrario
     """
@@ -42,7 +42,7 @@ def subir_a_gcs(archivo_local: str, nombre_bucket: str, destino_gcs: str) -> boo
     bucket = cliente_storage.bucket(nombre_bucket)
     blob = bucket.blob(destino_gcs)
     blob.upload_from_filename(archivo_local)
-    
+
     print(f"[OK] Archivo subido a gs://{nombre_bucket}/{destino_gcs}")
     return True
 

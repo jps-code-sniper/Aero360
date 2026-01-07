@@ -4,7 +4,7 @@ resource "google_storage_bucket" "landing_zone" {
   name          = "${var.project_id}-vuelos-landing"
   location      = "US"
   force_destroy = true
-  
+
   # Aplicamos los labels comunes definidos en tags.tf
   labels = local.common_labels
 }
@@ -16,7 +16,7 @@ resource "google_bigquery_dataset" "airline_dataset" {
   friendly_name = "Dataset de vuelos Aero360"
   description   = "Datos de vuelos para análisis operacional"
   location      = "US"
-  
+
   # Las tablas expiran automáticamente a los 30 días (cost management)
   # 2,592,000,000 ms = 30 días
   default_table_expiration_ms = 2592000000

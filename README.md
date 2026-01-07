@@ -51,7 +51,7 @@ Aero360/
 │       └── marts/       # KPIs listos para dashboards
 │
 └── .github/workflows/   # Pipelines de CI/CD
-    └── ci.yml           # Validacion de Terraform + dbt + Python
+    └── ci.yml           # Validacion de Terraform + SQL + Python
 ```
 
 ## Inicio Rapido
@@ -65,29 +65,20 @@ Aero360/
 ### 1. Configurar Infraestructura
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Editar terraform.tfvars con tu project_id
-
 terraform init
-terraform plan
 terraform apply
 ```
 
 ### 2. Configurar Ingesta
 ```bash
 cd ingestion
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Configurar variables de entorno
-export GCS_BUCKET_NAME="tu-project-id-vuelos-landing"
 export GOOGLE_APPLICATION_CREDENTIALS="/ruta/a/service-account.json"
 
-# Generar y subir datos de prueba
-python src/generator.py
-python src/validator.py
-python src/upload.py
+python src/generator.py      # Genera datos
+python src/validator.py      # Valida
+python src/batch_upload.py   # Sube 20 vuelos a GCS
 ```
 
 ### 3. Transformacion con dbt
@@ -95,41 +86,125 @@ python src/upload.py
 cd dbt_project
 pip install dbt-bigquery
 
-# Configurar profiles.yml con tus credenciales
-dbt deps
-dbt run
+dbt run --profiles-dir .
 dbt test
+dbt docs generate && dbt docs serve
+```
+
+## Modelos dbt - Arquitectura de Capas
+
+El proyecto implementa una arquitectura **Medallion** con 3 capas:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   stg_vuelos_raw│────▶│   stg_flights   │────▶│mart_daily_ops   │
+│    (source)     │     │   (staging)     │     │    (mart)       │
+│   Datos crudos  │     │  Datos limpios  │     │  KPIs diarios   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+       JSON                   VIEW                   TABLE
+```
+
+### Capa Staging: `stg_flights`
+
+Limpia y deduplica los datos crudos:
+
+```sql
+-- Convertir strings vacios a NULL
+nullif(cast(flight_id as STRING), '') as flight_id
+
+-- Deduplicar: mantener solo el registro mas reciente por flight_id
+row_number() over (partition by flight_id order by event_at desc) as rn
+```
+
+**Transformaciones aplicadas:**
+- Tipado correcto de columnas (STRING, INT64, TIMESTAMP)
+- Manejo de valores nulos con `NULLIF`
+- Deduplicacion con `ROW_NUMBER()` particionado
+
+### Capa Intermediate: `int_flight_metrics`
+
+Agrega metricas por ruta (origen-destino):
+
+```sql
+select
+    concat(origin_airport, ' -> ', destination_airport) as ruta,
+    count(*) as total_vuelos,
+    avg(passenger_count) as promedio_pasajeros
+from {{ ref('stg_flights') }}
+group by origin_airport, destination_airport
+```
+
+**Materializacion:** `ephemeral` (no persiste, se usa como CTE)
+
+### Capa Marts: `mart_daily_operations`
+
+KPIs diarios listos para dashboards:
+
+```sql
+select
+    date(event_at) as fecha,
+    count(*) as total_vuelos,
+    sum(passenger_count) as total_pasajeros,
+    avg(fuel_percentage) as eficiencia_combustible
+from {{ ref('stg_flights') }}
+group by date(event_at)
+```
+
+**Materializacion:** `table` (optimizado para queries frecuentes)
+
+### Lineage de dbt
+
+El grafico de dependencias muestra el flujo de datos:
+
+```
+Source (GCS)  -->  Staging  -->  Mart
+  (verde)          (azul)       (rosa)
+```
+
+Para ver el grafico interactivo:
+```bash
+dbt docs generate
+dbt docs serve --port 8080
 ```
 
 ## Variables de Entorno
 
-| Variable | Descripcion | Requerida |
-|----------|-------------|-----------|
-| `GCS_BUCKET_NAME` | Bucket de GCS para landing zone | Si |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Ruta al JSON de service account | Si |
-| `GCP_PROJECT_ID` | ID del proyecto de Google Cloud | Si |
+| Variable | Descripcion |
+|----------|-------------|
+| `GCS_BUCKET_NAME` | Bucket de GCS para landing zone |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Ruta al JSON de service account |
 
 ## Calidad de Datos
 
-El pipeline incluye multiples puntos de validacion:
+### Pre-ingesta (Python)
 
-1. **Pre-ingesta** (`validator.py`):
-   - Validacion de esquema JSON
-   - Verificacion de rangos (pasajeros: 1-500, combustible: 0-100)
-   - Formato de codigos de aeropuerto (3 letras mayusculas)
+| Validacion | Descripcion |
+|------------|-------------|
+| Esquema JSON | Estructura y tipos correctos |
+| Formato flight_id | 2 letras + 3-4 digitos |
+| Rango pasajeros | Entre 1 y 500 |
+| Rango combustible | Entre 0 y 100 |
+| Origen != Destino | Regla de negocio |
 
-2. **Tests de dbt** (`schema.yml`):
-   - Unicidad de clave primaria
-   - Restricciones de not null
-   - Integridad referencial
+### Post-carga (dbt tests)
 
-## Metricas Clave
+```yaml
+models:
+  - name: stg_flights
+    columns:
+      - name: flight_id
+        tests:
+          - unique
+          - not_null
+```
 
-| Metrica | Descripcion | Ubicacion |
-|---------|-------------|-----------|
-| `total_vuelos` | Cantidad de vuelos diarios | `mart_daily_operations` |
+## Metricas Disponibles
+
+| Metrica | Descripcion | Modelo |
+|---------|-------------|--------|
+| `total_vuelos` | Vuelos por dia | `mart_daily_operations` |
 | `total_pasajeros` | Pasajeros transportados | `mart_daily_operations` |
-| `eficiencia_combustible` | Nivel promedio de combustible | `mart_daily_operations` |
+| `eficiencia_combustible` | Nivel promedio | `mart_daily_operations` |
 | `vuelos_por_ruta` | Vuelos por origen-destino | `int_flight_metrics` |
 
 ## Stack Tecnologico
@@ -138,9 +213,9 @@ El pipeline incluye multiples puntos de validacion:
 |------|------------|
 | Infraestructura | Terraform, GCS, BigQuery |
 | Ingesta | Python, google-cloud-storage |
+| Validacion | jsonschema |
 | Transformacion | dbt-core, dbt-bigquery |
-| CI/CD | GitHub Actions |
-| Calidad | jsonschema, dbt tests |
+| CI/CD | GitHub Actions, SQLFluff |
 
 ## Licencia
 

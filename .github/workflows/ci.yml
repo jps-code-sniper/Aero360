@@ -1,0 +1,114 @@
+# Pipeline de Integración Continua
+# Se ejecuta en cada push y pull request a las ramas principales
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  TF_VERSION: '1.5.0'
+  PYTHON_VERSION: '3.11'
+  DBT_VERSION: '1.7.0'
+
+jobs:
+  # ============================================
+  # Validación de Terraform
+  # Verifica sintaxis y formato del código IaC
+  # ============================================
+  terraform-validate:
+    name: Validar Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Verificar formato
+        run: terraform fmt -check -recursive
+
+      - name: Inicializar (sin backend)
+        run: terraform init -backend=false
+
+      - name: Validar sintaxis
+        run: terraform validate
+
+  # ============================================
+  # Linting de Python
+  # Revisa estilo y errores comunes en el código
+  # ============================================
+  python-lint:
+    name: Linting Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar herramientas
+        run: pip install ruff
+
+      - name: Ejecutar linter
+        run: ruff check ingestion/src/
+
+      - name: Verificar formato
+        run: ruff format --check ingestion/src/
+
+  # ============================================
+  # Validación de dbt
+  # Compila modelos para verificar sintaxis SQL
+  # ============================================
+  dbt-test:
+    name: Validar dbt
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbt_project
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar dbt
+        run: pip install dbt-core==${{ env.DBT_VERSION }} dbt-bigquery
+
+      - name: Instalar dependencias dbt
+        run: dbt deps || true
+
+      - name: Validar sintaxis SQL
+        run: dbt parse
+        env:
+          DBT_PROFILES_DIR: .
+
+  # ============================================
+  # Resumen de CI
+  # Confirma que todos los checks pasaron
+  # ============================================
+  ci-success:
+    name: CI Exitoso
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, python-lint, dbt-test]
+    steps:
+      - name: Todos los checks pasaron
+        run: echo "¡Todos los checks de CI pasaron correctamente!"

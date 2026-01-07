@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: int_flight_metrics
+    description: "Aggregated flight metrics by route (origin → destination)"
+    columns:
+      - name: route_name
+        description: "Route identifier in format 'ORIGIN → DESTINATION'"
+      - name: total_flights
+        description: "Total number of flights on this route"
+      - name: total_passengers
+        description: "Sum of all passengers transported on this route"
+      - name: avg_passengers_per_flight
+        description: "Average passengers per flight"
+      - name: avg_fuel_level
+        description: "Average fuel level percentage at departure"
+      - name: avg_capacity_pct
+        description: "Average capacity utilization percentage (based on 250 max)"

@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: mart_daily_operations
+    description: "Daily operational KPIs for executive dashboards and monitoring"
+    columns:
+      - name: operation_date
+        description: "The date of operations"
+        data_tests:
+          - not_null
+      - name: total_flights
+        description: "Total number of flights operated that day"
+        data_tests:
+          - not_null
+      - name: total_passengers
+        description: "Total passengers transported that day"
+      - name: avg_fuel_efficiency
+        description: "Average fuel level at departure (higher = more efficient)"
+      - name: fleet_utilization_pct
+        description: "Percentage of total fleet capacity utilized"
+      - name: utilization_tier
+        description: "Performance tier: High (>=80%), Medium (>=50%), Low (<50%)"
+        data_tests:
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']

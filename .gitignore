@@ -1,0 +1,26 @@
+# Archivos JSON (pueden contener credenciales)
+*.json
+
+# Terraform - archivos locales y estado
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+terraform.tfvars
+
+# Python - cache y entornos virtuales
+__pycache__/
+venv/
+dbt-env/
+*.pyc
+
+# Logs y datos temporales
+logs/
+data/
+
+# Variables de entorno (solo subir .env.example)
+.env
+
+# Documentacion de estudio (solo local)
+docs/
+STUDY_GUIDE.md

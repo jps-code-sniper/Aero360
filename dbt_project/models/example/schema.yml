@@ -1,0 +1,12 @@
+
+version: 2
+
+models:
+  - name: stg_flights
+    description: "A flights dbt model"
+    columns:
+      - name: flight_id
+        description: "The primary key for this table"
+        data_tests:
+          - unique
+          - not_null

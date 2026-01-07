@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: gcp_raw              # Nombre interno para dbt
+    database: aero360-482417   # Tu ID de Proyecto
+    schema: airline_raw_data   # El Dataset que creamos con Terraform
+    tables:
+      - name: stg_vuelos_raw   # La tabla externa que creaste en BigQuery
